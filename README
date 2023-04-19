@@ -1,0 +1,11 @@
+# Sharded Key-value Storage System
+## Distributed Systems course: Assignment 2
+## Universitat Rovira i Virgili
+
+# Installation
+pip3 install -r requirements.txt
+pip3 install -e .
+
+# Evaluation
+python3 eval/single_node.py
+
