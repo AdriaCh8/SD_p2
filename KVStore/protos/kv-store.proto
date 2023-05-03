@@ -3,6 +3,7 @@ import "google/protobuf/empty.proto";
 
 // Defines the requests a client can perform to the storage system.
 
+// Necessary for the first subtask
 message GetRequest {
     uint32 key = 1;
 }
@@ -21,8 +22,9 @@ message AppendRequest {
     string value = 2;
 }
 
+// Necessary for the second subtask
 message RedistributeRequest {
-    string destination = 1;
+    string destination_server = 1;
     uint32 lower_val = 2;
     uint32 upper_val = 3;
 }
@@ -36,13 +38,26 @@ message TransferRequest {
     repeated KeyValue keys_values = 1;
 }
 
+// Necessary for the third subtask
+message ServerRequest {
+    string server = 1;
+}
+
+
 // RPCs for key-value server
 service KVStore {
+    // Necessary for the first subtask
     rpc Get (GetRequest) returns (GetResponse) {}
     rpc LPop (GetRequest) returns (GetResponse) {}
     rpc RPop (GetRequest) returns (GetResponse) {}
     rpc Put (PutRequest) returns (google.protobuf.Empty) {}
     rpc Append (AppendRequest) returns (google.protobuf.Empty) {}
+
+    // Necessary for the second subtask
     rpc Redistribute (RedistributeRequest) returns (google.protobuf.Empty) {}
     rpc Transfer(TransferRequest) returns (google.protobuf.Empty) {}
+
+    // Necessary for the third subtask
+    rpc AddReplica(ServerRequest) returns (google.protobuf.Empty) {}
+    rpc RemoveReplica(ServerRequest) returns (google.protobuf.Empty) {}
 }

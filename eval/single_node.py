@@ -1,17 +1,36 @@
-from KVStore.simple_shardkv import start_server
-from KVStore.clients.clients import SimpleClient
-from KVStore.tests.simple_shardkv import *
+import time
+from KVStore.kvstorage import start_storage_server
+from KVStore.logger import setup_logger
+from KVStore.tests.kvstore import *
+from KVStore.tests.utils import SHARDMASTER_PORT
 
-PORT = 52003
+setup_logger()
 
-server_proc = start_server.run(PORT)
 
-client = SimpleClient(f"localhost:{PORT}")
+NUM_CLIENTS = 3
 
-# create a stub (client)
-test1 = SimpleShardkvTests(client)
-test1.test()
-test2 = SimpleShardkvParallelTests
-test2.test()
+print("*************Single node tests**************")
 
+master_adress = f"localhost:{SHARDMASTER_PORT}"
+server_proc = start_storage_server.run(SHARDMASTER_PORT)
+time.sleep(0.5)
+
+try:
+
+    print("-Simple tests-")
+    test1 = SimpleKVStoreTests(master_adress, 1)
+    test1.test()
+
+    print("-Parallel tests-")
+    test2 = SimpleKVStoreParallelTests(master_adress, NUM_CLIENTS)
+    test2.test()
+
+    print("-Race condition tests-")
+    test2 = SimpleKVStoreRaceTests(master_adress, NUM_CLIENTS)
+    test2.test()
+
+except KeyboardInterrupt:
+    pass
+
+print("\n\n...Terminating server")
 server_proc.terminate()
