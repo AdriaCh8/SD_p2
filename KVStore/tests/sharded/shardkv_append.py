@@ -1,6 +1,7 @@
 from multiprocessing import Process
 
-from KVStore.clients.clients import SimpleClient, ShardClient
+from KVStore.clients.clients import ShardClient
+from KVStore.logger import setup_logger
 from KVStore.tests.utils import test_get, test_append, Test
 
 """
@@ -13,6 +14,8 @@ DATA = "MUDA "
 class ShardkvAppendTests(Test):
 
     def _test(self, client_id: int, num_iter: int):
+        setup_logger()
+
         client = ShardClient(self.master_address)
         assert (test_append(client, 81, DATA))
         assert (test_get(client, 81, DATA * (num_iter + 1)))

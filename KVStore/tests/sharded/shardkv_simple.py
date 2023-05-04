@@ -1,4 +1,5 @@
 from KVStore.clients.clients import ShardClient
+from KVStore.logger import setup_logger
 from KVStore.tests.utils import test_get, test_put, test_append, test_l_pop, test_r_pop, Test
 import logging
 
@@ -8,6 +9,7 @@ logger = logging.getLogger(__name__)
 class ShardKVSimpleTests(Test):
 
     def _test(self, client_id: int):
+        setup_logger()
 
         client = ShardClient(self.master_address)
 

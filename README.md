@@ -3,9 +3,17 @@
 ###  Universitat Rovira i Virgili
 
 # Installation
+· Linux
 ```bash
-sudo chmod u+x setup.sh
-pip3 install -e .
+python3 -m pip install -r requirements.txt
+python3 -m grpc_tools.protoc --proto_path=. --grpc_python_out=. --pyi_out=. --python_out=. ./KVStore/protos/*.proto
+python3 -m pip install -e .
+```
+· Windows
+```bash
+py -m pip install -r requirements.txt
+py -m grpc_tools.protoc --proto_path=. --grpc_python_out=. --pyi_out=. --python_out=. ./KVStore/protos/*.proto
+py -m pip install -e .
 ```
 
 # Evaluation

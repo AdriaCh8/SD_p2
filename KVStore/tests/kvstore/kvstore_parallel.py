@@ -1,6 +1,7 @@
 import time
 import logging
 from KVStore.clients.clients import SimpleClient
+from KVStore.logger import setup_logger
 from KVStore.tests.utils import test_get, test_put, test_append, Test
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,7 @@ DATA = {
 class SimpleKVStoreParallelTests(Test):
 
     def _test(self, client_id: int):
+        setup_logger()
 
         client = SimpleClient(self.master_address)
         time.sleep(1)

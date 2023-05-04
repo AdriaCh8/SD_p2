@@ -1,40 +1,15 @@
 import logging.config
 import os
+import sys
 
 def setup_logger():
 
-    stream = 'ext://sys.stderr'
+    root = logging.getLogger()
+    root.setLevel(logging.INFO)
 
-    config_dict = {
-        'version': 1,
-        'disable_existing_loggers': False,
-        'formatters': {
-            'standard': {
-                'format': "%(asctime)s [%(levelname)s] %(filename)s:%(lineno)s -- %(message)s"
-            },
-        },
-        'handlers': {
-            'console_handler': {
-                'level': "INFO",
-                'formatter': 'standard',
-                'class': 'logging.StreamHandler',
-                'stream': stream
-            },
-            'file_handler': {
-                'level': "INFO",
-                'formatter': 'standard',
-                'class': 'logging.FileHandler',
-                'filename': os.devnull,
-                'mode': 'a',
-            },
-        },
-        'loggers': {
-            'KVStore': {
-                'handlers': ['console_handler'],
-                'level': "INFO",
-                'propagate': False
-            },
-        }
-    }
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(filename)s:%(lineno)s -- %(message)s")
+    handler.setFormatter(formatter)
+    root.addHandler(handler)
 
-    logging.config.dictConfig(config_dict)

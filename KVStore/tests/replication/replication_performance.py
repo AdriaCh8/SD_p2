@@ -4,6 +4,7 @@ import string
 import time
 import logging
 from KVStore.clients.clients import ShardReplicaClient
+from KVStore.logger import setup_logger
 from KVStore.tests.utils import test_get, test_put, Test
 
 
@@ -13,12 +14,14 @@ logger = logging.getLogger(__name__)
 Tests on simple storage requests on a single storage server.
 """
 
-EXEC_TIME = 5
+EXEC_TIME = 8
 
 
 class ShardKVReplicationPerformanceTest(Test):
 
     def _test(self, client_id: int, return_dict) -> (float, float):
+
+        setup_logger()
 
         client = ShardReplicaClient(self.master_address)
 
@@ -43,7 +46,8 @@ class ShardKVReplicationPerformanceTest(Test):
             else:
                 logger.info("CORRECT")
 
-        return_dict[client_id] = (num_ops / EXEC_TIME, num_errors / EXEC_TIME)
+        return_dict[client_id] = (num_ops / EXEC_TIME, num_errors / EXEC_TIME, num_errors / num_ops )
+        logger.info(f"{client_id}: {num_ops} ops, {num_errors} errors, {return_dict[client_id][1]} errors/s")
 
         client.stop()
 
@@ -62,5 +66,6 @@ class ShardKVReplicationPerformanceTest(Test):
 
         throughputs = [res[0] for res in return_dict.values()]
         error_rates = [res[1] for res in return_dict.values()]
+        error_percs = [res[2] for res in return_dict.values()]
 
-        return sum(throughputs), sum(error_rates)
+        return sum(throughputs), sum(error_rates), sum(error_percs)/len(error_percs)

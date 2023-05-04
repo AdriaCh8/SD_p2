@@ -1,10 +1,8 @@
-import time
 from concurrent import futures
 from multiprocessing import Process, Queue
-
 import grpc
-
 from KVStore.kvstorage.kvstorage import KVStorageServicer, KVStorageReplicasService
+from KVStore.logger import setup_logger
 from KVStore.protos import kv_store_pb2_grpc, kv_store_shardmaster_pb2_grpc
 from KVStore.protos.kv_store_shardmaster_pb2 import JoinRequest, LeaveRequest, JoinReplicaResponse
 from KVStore.tests.utils import wait
@@ -13,6 +11,9 @@ HOSTNAME: str = "localhost"
 
 
 def _run(end_queue: Queue, storage_server_port: int, shardmaster_port: int, consistency_level: int):
+
+    setup_logger()
+
     address: str = "%s:%d" % (HOSTNAME, storage_server_port)
 
     storage_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
@@ -39,7 +40,6 @@ def _run(end_queue: Queue, storage_server_port: int, shardmaster_port: int, cons
         stub.Leave(req)
 
         wait(1)
-
         channel.close()
 
         storage_server.stop(0)
@@ -54,4 +54,5 @@ def run(port: int, shardmaster_port: int, consistency_level: int) -> Queue:
     end_queue = Queue()
     server_proc = Process(target=_run, args=[end_queue, port, shardmaster_port, consistency_level])
     server_proc.start()
+    wait(0.5)
     return end_queue
