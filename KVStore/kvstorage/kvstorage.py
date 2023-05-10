@@ -49,34 +49,45 @@ class KVStorageService:
 class KVStorageSimpleService(KVStorageService):
 
     def __init__(self):
-        """
-        To fill with your code
-        """
+        self.values_set = dict()
 
     def get(self, key: int) -> Union[str, None]:
-        """
-        To fill with your code
-        """
+        return self.values_set(key)
 
     def l_pop(self, key: int) -> Union[str, None]:
-        """
-        To fill with your code
-        """
+        value = self.values_set(key)
+        if(value==None):
+            return None
+        if(len(value)==0):
+            return ""
+        else:
+            val = value[0]
+            value[0] = ""
+            self.values_set.update({key:value}) 
+            return val
 
     def r_pop(self, key: int) -> Union[str, None]:
-        """
-        To fill with your code
-        """
+        value = self.values_set(key)
+        if(value==None):
+            return None
+        if(len(value)==0):
+            return ""
+        else:
+            val = value[-1]
+            value[-1] = ""
+            self.values_set.update({key:value}) 
+            return val
 
     def put(self, key: int, value: str):
-        """
-        To fill with your code
-        """
+        self.values_set[key] = value
 
     def append(self, key: int, value: str):
-        """
-        To fill with your code
-        """
+        val = self.values_set(key)
+        if(val==None):
+            self.values_set.update({key:value}) 
+        else:
+            val = val + value
+            self.values_set.update({key:val}) 
 
     def redistribute(self, destination_server: str, lower_val: int, upper_val: int):
         """

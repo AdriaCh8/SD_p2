@@ -21,30 +21,20 @@ class SimpleClient:
         self.stub = KVStoreStub(self.channel)
 
     def get(self, key: int) -> Union[str, None]:
-        """
-        To fill with your code
-        """
+        self.stub.Get(GetRequest(key=key))
 
 
     def l_pop(self, key: int) -> Union[str, None]:
-        """
-        To fill with your code
-        """
+       self.stub.LPop(GetRequest(key=key))
 
     def r_pop(self, key: int) -> Union[str, None]:
-        """
-        To fill with your code
-        """
+        self.stub.RPop(GetRequest(key=key))
 
     def put(self, key: int, value: str):
-        """
-        To fill with your code
-        """
+        self.stub.Put(PutRequest(key=key, value=value))
 
     def append(self, key: int, value: str):
-        """
-        To fill with your code
-        """
+        self.stub.Append(PutRequest(key=key, value=value))
 
     def stop(self):
         self.channel.close()
