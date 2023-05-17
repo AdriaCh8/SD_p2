@@ -52,10 +52,10 @@ class KVStorageSimpleService(KVStorageService):
         self.values_set = dict()
 
     def get(self, key: int) -> Union[str, None]:
-        return self.values_set(key)
+        return self.values_set.get(key)
 
     def l_pop(self, key: int) -> Union[str, None]:
-        value = self.values_set(key)
+        value = self.values_set.get(key)
         if(value==None):
             return None
         if(len(value)==0):
@@ -67,7 +67,7 @@ class KVStorageSimpleService(KVStorageService):
             return val
 
     def r_pop(self, key: int) -> Union[str, None]:
-        value = self.values_set(key)
+        value = self.values_set.get(key)
         if(value==None):
             return None
         if(len(value)==0):
@@ -82,7 +82,7 @@ class KVStorageSimpleService(KVStorageService):
         self.values_set[key] = value
 
     def append(self, key: int, value: str):
-        val = self.values_set(key)
+        val = self.values_set.get(key)
         if(val==None):
             self.values_set.update({key:value}) 
         else:
@@ -95,9 +95,10 @@ class KVStorageSimpleService(KVStorageService):
         """
 
     def transfer(self, keys_values: List[KeyValue]):
-        """
-        To fill with your code
-        """
+        transfered_values = dict()
+        for i in keys_values:
+            transfered_values.update({i:self.values_set[i]})
+        return transfered_values
 
 
 class KVStorageReplicasService(KVStorageSimpleService):
