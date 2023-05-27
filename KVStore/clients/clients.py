@@ -22,15 +22,23 @@ class SimpleClient:
         self.stub = KVStoreStub(self.channel)
 
     def get(self, key: int) -> Union[str, None]:
-        key1 = GetRequest(key=key)
-        return self.stub.Get(key1)
+        result = self.stub.Get(GetRequest(key=key)).value
+        if(result==''):
+            result=None
+        return result
         
 
     def l_pop(self, key: int) -> Union[str, None]:
-        return self.stub.LPop(GetRequest(key=key))
+        result = self.stub.LPop(GetRequest(key=key)).value
+        if result=="None":
+            result = None
+        return result
 
     def r_pop(self, key: int) -> Union[str, None]:
-        return self.stub.RPop(GetRequest(key=key))
+        result = self.stub.RPop(GetRequest(key=key)).value
+        if result=="None":
+            result = None
+        return result
 
     def put(self, key: int, value: str):
         self.stub.Put(PutRequest(key=key, value=value))

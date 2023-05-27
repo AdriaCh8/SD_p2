@@ -5,7 +5,7 @@ import logging
 import grpc
 from KVStore.protos.kv_store_pb2 import *
 from KVStore.protos.kv_store_pb2_grpc import KVStoreServicer, KVStoreStub
-
+from google.protobuf import empty_pb2
 from KVStore.protos.kv_store_shardmaster_pb2 import Role
 
 EVENTUAL_CONSISTENCY_INTERVAL: int = 2
@@ -56,25 +56,25 @@ class KVStorageSimpleService(KVStorageService):
 
     def l_pop(self, key: int) -> Union[str, None]:
         value = self.values_set.get(key)
-        if(value==None):
-            return None
-        if(len(value)==0):
+        if value is None:
+            return "None"
+        if len(value) == 0:
             return ""
         else:
             val = value[0]
-            value[0] = ""
-            self.values_set.update({key:value}) 
+            value = value[1:]
+            self.values_set[key] = value
             return val
 
     def r_pop(self, key: int) -> Union[str, None]:
         value = self.values_set.get(key)
-        if(value==None):
-            return None
+        if value is None:
+            return "None"
         if(len(value)==0):
             return ""
         else:
             val = value[-1]
-            value[-1] = ""
+            value=value[:-1]
             self.values_set.update({key:value}) 
             return val
 
@@ -154,30 +154,36 @@ class KVStorageServicer(KVStoreServicer):
         """
         To fill with your code
         """
-
     def Get(self, request: GetRequest, context) -> GetResponse:
-        self.storage_service.get(request.key)
+        return GetResponse(value=self.storage_service.get(request.key))
 
     def LPop(self, request: GetRequest, context) -> GetResponse:
-        self.storage_service.l_pop(request.key)
+        return GetResponse(value=self.storage_service.l_pop(request.key))
 
     def RPop(self, request: GetRequest, context) -> GetResponse:
-        self.storage_service.r_pop(request.key)
+        return GetResponse(value=self.storage_service.r_pop(request.key))
 
-    def Put(self, request: PutRequest, context) -> google_dot_protobuf_dot_empty__pb2.Empty:
+    def Put(self, request: PutRequest, context) -> empty_pb2.Empty:
         self.storage_service.put(request.key, request.value)
+        return empty_pb2.Empty()
 
-    def Append(self, request: AppendRequest, context) -> google_dot_protobuf_dot_empty__pb2.Empty:
+    def Append(self, request: AppendRequest, context) -> empty_pb2.Empty:
         self.storage_service.append(request.key, request.value)
+        return empty_pb2.Empty()
 
-    def Redistribute(self, request: RedistributeRequest, context) -> google_dot_protobuf_dot_empty__pb2.Empty:
+    def Redistribute(self, request: RedistributeRequest, context) -> empty_pb2.Empty:
         self.storage_service.redistribute(request.destination_server, request.lower_val, request.upper_val)
+        return empty_pb2.Empty()
 
-    def Transfer(self, request: TransferRequest, context) -> google_dot_protobuf_dot_empty__pb2.Empty:
-        self.storage_service.transfer(request.keys_values)
+    def Transfer(self, request: TransferRequest, context) -> empty_pb2.Empty:
+        transferred_values = self.storage_service.transfer(request.keys_values)
+        # You need to send the transferred values in the response.
+        return empty_pb2.Empty()
 
-    def AddReplica(self, request: ServerRequest, context) -> google_dot_protobuf_dot_empty__pb2.Empty:
+    def AddReplica(self, request: ServerRequest, context) -> empty_pb2.Empty:
         self.storage_service.add_replica(request.server)
+        return empty_pb2.Empty()
 
-    def RemoveReplica(self, request: ServerRequest, context) -> google_dot_protobuf_dot_empty__pb2.Empty:
+    def RemoveReplica(self, request: ServerRequest, context) -> empty_pb2.Empty:
         self.storage_service.remove_replica(request.server)
+        return empty_pb2.Empty()
