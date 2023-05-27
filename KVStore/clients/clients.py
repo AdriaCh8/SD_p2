@@ -2,6 +2,7 @@ from typing import Union, Dict
 import grpc
 import logging
 from KVStore.protos.kv_store_pb2 import GetRequest, PutRequest, GetResponse
+from google.protobuf import message
 from KVStore.protos.kv_store_pb2_grpc import KVStoreStub
 from KVStore.protos.kv_store_shardmaster_pb2 import QueryRequest, QueryResponse, QueryReplicaRequest, Operation
 from KVStore.protos.kv_store_shardmaster_pb2_grpc import ShardMasterStub
@@ -21,14 +22,15 @@ class SimpleClient:
         self.stub = KVStoreStub(self.channel)
 
     def get(self, key: int) -> Union[str, None]:
-        self.stub.Get(GetRequest(key=key))
-
+        key1 = GetRequest(key=key)
+        return self.stub.Get(key1)
+        
 
     def l_pop(self, key: int) -> Union[str, None]:
-       self.stub.LPop(GetRequest(key=key))
+        return self.stub.LPop(GetRequest(key=key))
 
     def r_pop(self, key: int) -> Union[str, None]:
-        self.stub.RPop(GetRequest(key=key))
+        return self.stub.RPop(GetRequest(key=key))
 
     def put(self, key: int, value: str):
         self.stub.Put(PutRequest(key=key, value=value))

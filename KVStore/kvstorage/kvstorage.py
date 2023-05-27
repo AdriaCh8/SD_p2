@@ -90,9 +90,10 @@ class KVStorageSimpleService(KVStorageService):
             self.values_set.update({key:val}) 
 
     def redistribute(self, destination_server: str, lower_val: int, upper_val: int):
-        """
-        To fill with your code
-        """
+        for i in self.values_set:
+            if(i>=lower_val and i<=upper_val):
+                destination_server.put(i,self.values_set[i])
+
 
     def transfer(self, keys_values: List[KeyValue]):
         transfered_values = dict()
@@ -155,46 +156,28 @@ class KVStorageServicer(KVStoreServicer):
         """
 
     def Get(self, request: GetRequest, context) -> GetResponse:
-        """
-        To fill with your code
-        """
+        self.storage_service.get(request.key)
 
     def LPop(self, request: GetRequest, context) -> GetResponse:
-        """
-        To fill with your code
-        """
+        self.storage_service.l_pop(request.key)
 
     def RPop(self, request: GetRequest, context) -> GetResponse:
-        """
-        To fill with your code
-        """
+        self.storage_service.r_pop(request.key)
 
     def Put(self, request: PutRequest, context) -> google_dot_protobuf_dot_empty__pb2.Empty:
-        """
-        To fill with your code
-        """
+        self.storage_service.put(request.key, request.value)
 
     def Append(self, request: AppendRequest, context) -> google_dot_protobuf_dot_empty__pb2.Empty:
-        """
-        To fill with your code
-        """
+        self.storage_service.append(request.key, request.value)
 
     def Redistribute(self, request: RedistributeRequest, context) -> google_dot_protobuf_dot_empty__pb2.Empty:
-        """
-        To fill with your code
-        """
+        self.storage_service.redistribute(request.destination_server, request.lower_val, request.upper_val)
 
     def Transfer(self, request: TransferRequest, context) -> google_dot_protobuf_dot_empty__pb2.Empty:
-        """
-        To fill with your code
-        """
+        self.storage_service.transfer(request.keys_values)
 
     def AddReplica(self, request: ServerRequest, context) -> google_dot_protobuf_dot_empty__pb2.Empty:
-        """
-        To fill with your code
-        """
+        self.storage_service.add_replica(request.server)
 
     def RemoveReplica(self, request: ServerRequest, context) -> google_dot_protobuf_dot_empty__pb2.Empty:
-        """
-        To fill with your code
-        """
+        self.storage_service.remove_replica(request.server)
