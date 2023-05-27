@@ -5,6 +5,9 @@ from KVStore.protos.kv_store_pb2 import GetRequest, PutRequest, GetResponse
 from KVStore.protos.kv_store_pb2_grpc import KVStoreStub
 from KVStore.protos.kv_store_shardmaster_pb2 import QueryRequest, QueryResponse, QueryReplicaRequest, Operation
 from KVStore.protos.kv_store_shardmaster_pb2_grpc import ShardMasterStub
+from typing import Union
+from KVStore.clients.clients import ShardClient
+from KVStore.protos.kv_store_pb2_grpc import KVStoreStub
 
 logger = logging.getLogger(__name__)
 
@@ -76,34 +79,36 @@ class ShardClient(SimpleClient):
         To fill with your code
         """
 
-
 class ShardReplicaClient(ShardClient):
 
     def get(self, key: int) -> Union[str, None]:
-        """
-        To fill with your code
-        """
+        #Asks for the value of a key (read)
+        request = GetRequest(key=key)
+        return self.stub.get(request)
 
     def l_pop(self, key: int) -> Union[str, None]:
-        """
-        To fill with your code
-        """
-
+        #Asks for the rightmost character of the value of the key. The returned character is deleted from the stored value.
+        # (write)
+        request = GetRequest(key=key)
+        response = self.stub.l_pop(request)
+        return response.value if response.success else None
 
     def r_pop(self, key: int) -> Union[str, None]:
-        """
-        To fill with your code
-        """
+        request = GetRequest(key=key)
+        response = self.stub.r_pop(request)
+        return response.value if response.success else None
 
 
     def put(self, key: int, value: str):
-        """
-        To fill with your code
-        """
+        # Saves the value into the key.
+        # If the key exists already, its value gets overwritten. (write)
+        request = PutRequest(key=key, value=value)
+        self.stub.put(request)
 
 
     def append(self, key: int, value: str):
-        """
-        To fill with your code
-        """
+        # Concatenates the specified value to the leftmost end of the value in the key.
+        # If the key does not exist, it saves the value into the key. (write)
+        request = AppendRequest(key=key, value=value)
+        self.stub.append(request)
 

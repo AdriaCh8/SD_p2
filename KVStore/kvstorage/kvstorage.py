@@ -99,63 +99,69 @@ class KVStorageSimpleService(KVStorageService):
         To fill with your code
         """
 
-
 class KVStorageReplicasService(KVStorageSimpleService):
     role: Role
 
     def __init__(self, consistency_level: int):
         super().__init__()
-        self.consistency_level = consistency_level
-        """
-        To fill with your code
-        """
+        self.consistenc
+        
+        y_level = consistency_level
+        self.secondary_replicas = []  # List to store the addresses of secondary replicas
 
     def l_pop(self, key: int) -> str:
-        """
-        To fill with your code
-        """
+        #Run l_pop on replica master and updates all the replicas
+        value = super().l_pop(key)
+        if value is not None:
+            if self.role == Role.REPLICA_MASTER:
+                for replica in self.secondary_replicas:
+                    self._run_l_pop_on_replica(replica, key)
+        return value
+
 
     def r_pop(self, key: int) -> str:
-        """
-        To fill with your code
-        """
+        # Run r_pop on replica master and update all the replicas
+        value = super().r_pop(key)
+        if value is not None:
+            if self.role == Role.REPLICA_MASTER:
+                for replica in self.secondary_replicas:
+                    self._run_r_pop_on_replica(replica, key)
+        return value
 
     def put(self, key: int, value: str):
         """
-        To fill with your code
+        TODO: To fill with your code
+        run put on replica master and update all replicas
         """
 
     def append(self, key: int, value: str):
         """
-        To fill with your code
+        TODO: To fill with your code
         """
 
     def add_replica(self, server: str):
-        """
-        To fill with your code
-        """
+        self.secondary_replicas.append(server)
 
     def remove_replica(self, server: str):
-        """
-        To fill with your code
-        """
+         if server in self.secondary_replicas:
+            self.secondary_replicas.remove(server)
 
     def set_role(self, role: Role):
         logger.info(f"Got role {role}")
         self.role = role
-
 
 class KVStorageServicer(KVStoreServicer):
 
     def __init__(self, service: KVStorageService):
         self.storage_service = service
         """
-        To fill with your code
+        TODO: To fill with your code
         """
 
     def Get(self, request: GetRequest, context) -> GetResponse:
         """
-        To fill with your code
+        To fill with your code:
+        
         """
 
     def LPop(self, request: GetRequest, context) -> GetResponse:
