@@ -50,42 +50,53 @@ class SimpleClient:
         self.channel.close()
 
 
+# Implement a client class that interacts with the shard master to obtain the address of the 
+# appropriate storage server for a given key. 
+# The client should then direct storage requests to the received server.
 class ShardClient(SimpleClient):
     def __init__(self, shard_master_address: str):
         self.channel = grpc.insecure_channel(shard_master_address)
         self.stub = ShardMasterStub(self.channel)
-        """
-        To fill with your code
-        """
 
     def get(self, key: int) -> Union[str, None]:
-        """
-        To fill with your code
-        """
+        stub = self.getServer(key)
+        result = stub.Get(GetRequest(key=key)).value
+        if(result==''):
+            result=None
+        return result
+
 
     def l_pop(self, key: int) -> Union[str, None]:
-        """
-        To fill with your code
-        """
+        stub=self.getServer(key)
+        result = stub.LPop(GetRequest(key=key)).value
+        if result=="None":
+            result = None
+        return result
 
 
     def r_pop(self, key: int) -> Union[str, None]:
-        """
-        To fill with your code
-        """
+        stub = self.getServer(key)
+        result = stub.RPop(GetRequest(key=key)).value
+        if result=="None":
+            result = None
+        return result
 
 
     def put(self, key: int, value: str):
-        """
-        To fill with your code
-        """
+       stub = self.getServer(key)
+       stub.Put(PutRequest(key=key, value=value))
 
 
     def append(self, key: int, value: str):
-        """
-        To fill with your code
-        """
+        stub = self.getServer(key)
+        stub.Append(PutRequest(key=key, value=value))
 
+    def getServer(self, key: int) -> KVStoreStub:
+        a=self.stub.Query(QueryRequest(key=key))
+        address = a.server
+        channel = grpc.insecure_channel(address)
+        return KVStoreStub(channel)
+   
 
 class ShardReplicaClient(ShardClient):
 

@@ -6,7 +6,7 @@ import grpc
 from KVStore.protos.kv_store_pb2 import *
 from KVStore.protos.kv_store_pb2_grpc import KVStoreServicer, KVStoreStub
 from google.protobuf import empty_pb2
-from KVStore.protos.kv_store_shardmaster_pb2 import Role
+from KVStore.protos.kv_store_shardmaster_pb2 import QueryRequest, Role
 
 EVENTUAL_CONSISTENCY_INTERVAL: int = 2
 
@@ -90,16 +90,24 @@ class KVStorageSimpleService(KVStorageService):
             self.values_set.update({key:val}) 
 
     def redistribute(self, destination_server: str, lower_val: int, upper_val: int):
+        keysToRedistri = []
         for i in self.values_set:
             if(i>=lower_val and i<=upper_val):
-                destination_server.put(i,self.values_set[i])
-
+                keysToRedistri.append(KeyValue(key=i,value=self.values_set[i]))
+        stub = self.getServer(destination_server)
+        stub.Transfer(keysToRedistri)
 
     def transfer(self, keys_values: List[KeyValue]):
-        transfered_values = dict()
-        for i in keys_values:
-            transfered_values.update({i:self.values_set[i]})
-        return transfered_values
+        for kv in keys_values:
+            key = kv.key
+            value = kv.value
+            self.append(key, value)
+    
+    def getServer(self, key:int) -> KVStoreStub:
+        resp=self.stub.Query(QueryRequest(key=key))
+        address=resp.value
+        channel = grpc.insecure_channel(address)
+        return KVStoreStub(channel)
 
 
 class KVStorageReplicasService(KVStorageSimpleService):
@@ -151,9 +159,7 @@ class KVStorageServicer(KVStoreServicer):
 
     def __init__(self, service: KVStorageService):
         self.storage_service = service
-        """
-        To fill with your code
-        """
+      
     def Get(self, request: GetRequest, context) -> GetResponse:
         return GetResponse(value=self.storage_service.get(request.key))
 

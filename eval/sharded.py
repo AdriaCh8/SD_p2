@@ -8,8 +8,8 @@ from sys import platform
 
 logger = logging.getLogger(__name__)
 
-NUM_CLIENTS = 2
-NUM_STORAGE_SERVERS = [2, 4, 8]
+NUM_CLIENTS = 1
+NUM_STORAGE_SERVERS = [1]
 master_address = f"localhost:{SHARDMASTER_PORT}"
 
 
