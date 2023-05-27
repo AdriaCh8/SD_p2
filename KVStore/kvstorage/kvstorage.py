@@ -1,3 +1,4 @@
+import threading
 import time
 import random
 from typing import Dict, Union, List
@@ -50,12 +51,18 @@ class KVStorageSimpleService(KVStorageService):
 
     def __init__(self):
         self.values_set = dict()
+        self.semaphore = threading.Semaphore() 
 
     def get(self, key: int) -> Union[str, None]:
-        return self.values_set.get(key)
+        self.semaphore.acquire()
+        response=self.values_set.get(key)
+        self.semaphore.release()
+        return response
 
     def l_pop(self, key: int) -> Union[str, None]:
+        self.semaphore.acquire()
         value = self.values_set.get(key)
+        self.semaphore.release()
         if value is None:
             return "None"
         if len(value) == 0:
@@ -67,7 +74,9 @@ class KVStorageSimpleService(KVStorageService):
             return val
 
     def r_pop(self, key: int) -> Union[str, None]:
+        self.semaphore.acquire()
         value = self.values_set.get(key)
+        self.semaphore.release()
         if value is None:
             return "None"
         if(len(value)==0):
@@ -77,35 +86,43 @@ class KVStorageSimpleService(KVStorageService):
             value=value[:-1]
             self.values_set.update({key:value}) 
             return val
+        
 
     def put(self, key: int, value: str):
+        self.semaphore.acquire()
         self.values_set[key] = value
+        self.semaphore.release()
 
     def append(self, key: int, value: str):
+        self.semaphore.acquire()
         val = self.values_set.get(key)
         if(val==None):
             self.values_set.update({key:value}) 
         else:
             val = val + value
             self.values_set.update({key:val}) 
+        self.semaphore.release()
+    
 
     def redistribute(self, destination_server: str, lower_val: int, upper_val: int):
+        self.semaphore.acquire()
         keysToRedistri = []
         for i in self.values_set:
             if(i>=lower_val and i<=upper_val):
                 keysToRedistri.append(KeyValue(key=i,value=self.values_set[i]))
         stub = self.getServer(destination_server)
-        stub.Transfer(keysToRedistri)
+        self.semaphore.release()
+        stub.Transfer(TransferRequest(keys_values=keysToRedistri))
+ 
 
     def transfer(self, keys_values: List[KeyValue]):
         for kv in keys_values:
             key = kv.key
             value = kv.value
             self.append(key, value)
+        
     
-    def getServer(self, key:int) -> KVStoreStub:
-        resp=self.stub.Query(QueryRequest(key=key))
-        address=resp.value
+    def getServer(self, address:str) -> KVStoreStub:
         channel = grpc.insecure_channel(address)
         return KVStoreStub(channel)
 
@@ -182,8 +199,7 @@ class KVStorageServicer(KVStoreServicer):
         return empty_pb2.Empty()
 
     def Transfer(self, request: TransferRequest, context) -> empty_pb2.Empty:
-        transferred_values = self.storage_service.transfer(request.keys_values)
-        # You need to send the transferred values in the response.
+        self.storage_service.transfer(request.keys_values)
         return empty_pb2.Empty()
 
     def AddReplica(self, request: ServerRequest, context) -> empty_pb2.Empty:

@@ -1,4 +1,5 @@
 import logging
+import threading
 
 import grpc
 from KVStore.protos.kv_store_pb2 import RedistributeRequest, ServerRequest
@@ -32,32 +33,38 @@ class ShardMasterService:
 class ShardMasterSimpleService(ShardMasterService):
     def __init__(self):
         self.servers= dict() #server address with the range of keys
-        self.serv=[] #
+         # Create a Semaphore with an initial value
+        self.semaphore = threading.Semaphore() 
+
 
     def join(self, server: str):
         self.servers[server] = None  #add a server to the dict
         num_servers = len(self.servers) # do the calculus of nºkeys per server
         if num_servers != 0:  # avoid division by zero
             num_keys_per_server = 99 // num_servers
-            self.redistributeKeysJoin(num_keys_per_server) #TODO: redistribute the keys of the other servers acordingly
-
+            remaining_keys = 99 % num_servers
+            print(remaining_keys)
+            self.semaphore.acquire()
+            self.redistributeKeysJoin(num_keys_per_server, remaining_keys) #TODO: redistribute the keys of the other servers acordingly
+            self.semaphore.release()
 
     def leave(self, server: str):
         if server in self.servers:
             num_servers = len(self.servers)-1 #do the calculus of nºkeys per server
             if num_servers != 0:  # avoid division by zero
                 num_keys_per_server = 99 // num_servers
-                self.redistributeKeysLeave(num_keys_per_server, server) #redistribute the keys of the other servers acordingly
-           
+                remaining_keys = 99 % num_servers
+                self.semaphore.acquire()
+                self.redistributeKeysLeave(num_keys_per_server, server,remaining_keys ) #redistribute the keys of the other servers acordingly
+                self.semaphore.release()
         
     def query(self, key: int) -> str:
         for server, key_range in self.servers.items():
             if key_range is not None and key_range[0] <= key <= key_range[1]:
                 return server
         return ""
-
-    def redistributeKeysJoin(self, keysPerServ: int):
-        print(keysPerServ)
+        
+    def redistributeKeysJoin(self, keysPerServ: int,remainingKeys:int):
         sortedServers = sorted(self.servers.keys())
         antServer = None  # Initialize antServer variable
         initialupper_key = 0
@@ -65,8 +72,10 @@ class ShardMasterSimpleService(ShardMasterService):
         upperVal = 0  # Define upperVal variable
         for i, server in enumerate(sortedServers):
             if antServer is not None:
+                if i == len(sortedServers) - 1 and remainingKeys > 0:
+                    upperVal += remainingKeys  # Add remaining keys to the last server
                 stub=self.getServer(antServer)
-                stub.Redistribute(server, lowerVal, upperVal) #server -> server to wich the keys will be moved
+                stub.Redistribute(RedistributeRequest(destination_server=server, lower_val=lowerVal, upper_val=upperVal)) #server -> server to wich the keys will be moved
             if self.servers[server] is not None:
                 initialupper_key=self.servers[server][1]
             lowerKey = i * keysPerServ
@@ -78,14 +87,16 @@ class ShardMasterSimpleService(ShardMasterService):
             else: 
                 lowerVal = initialupper_key
                 upperVal = upperKey
+            if i == len(sortedServers) - 1 and remainingKeys > 0:
+                upperKey += remainingKeys  # Add remaining keys to the last server
             self.servers[server] = (lowerKey, upperKey)
             antServer=server
     
-    def redistributeKeysLeave(self, keysPerServ:int , serverLeave: str):
+    def redistributeKeysLeave(self, keysPerServ:int , serverLeave: str, remainingKeys:int):
         stub=self.getServer(serverLeave)
         lowKey = self.servers[serverLeave][0]
         address=self.query(lowKey)
-        stub.Redistribute(address, lowKey, self.servers[serverLeave][1]) #server -> server to wich the keys will be moved
+        stub.Redistribute(RedistributeRequest(destination_server=address,lower_val=lowKey, upper_val=self.servers[serverLeave][1])) #server -> server to wich the keys will be moved
         del self.servers[serverLeave] #delete the server of the dict
         sortedServers = sorted(self.servers.keys())
         antServer = None  # Initialize antServer variable
@@ -94,8 +105,10 @@ class ShardMasterSimpleService(ShardMasterService):
         upperVal = 0  # Define upperVal variable
         for i, server in enumerate(sortedServers):
             if antServer is not None:
+                if i == len(sortedServers) - 1 and remainingKeys > 0:
+                    upperVal += remainingKeys  # Add remaining keys to the last server
                 stub=self.getServer(antServer)
-                stub.Redistribute(server, lowerVal, upperVal) #server -> server to wich the keys will be moved
+                stub.Redistribute(RedistributeRequest(destination_server=server, lower_val=lowerVal, upper_val=upperVal)) #server -> server to wich the keys will be moved
             if self.servers[server] is not None:
                 initialupper_key=self.servers[server][1]
             lowerKey = i * keysPerServ
@@ -107,6 +120,9 @@ class ShardMasterSimpleService(ShardMasterService):
             else: 
                 lowerVal = initialupper_key
                 upperVal = upperKey
+            
+            if i == len(sortedServers) - 1 and remainingKeys > 0:
+                upperKey += remainingKeys  # Add remaining keys to the last server
             self.servers[server] = (lowerKey, upperKey)
             antServer=server
 

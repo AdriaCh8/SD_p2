@@ -1,3 +1,4 @@
+import threading
 from typing import Union, Dict
 import grpc
 import logging
@@ -57,13 +58,14 @@ class ShardClient(SimpleClient):
     def __init__(self, shard_master_address: str):
         self.channel = grpc.insecure_channel(shard_master_address)
         self.stub = ShardMasterStub(self.channel)
-
+       
     def get(self, key: int) -> Union[str, None]:
-        stub = self.getServer(key)
-        result = stub.Get(GetRequest(key=key)).value
-        if(result==''):
-            result=None
-        return result
+        if(key<100):
+            stub = self.getServer(key)
+            result = stub.Get(GetRequest(key=key)).value
+            if(result==''):
+                result=None
+            return result
 
 
     def l_pop(self, key: int) -> Union[str, None]:
