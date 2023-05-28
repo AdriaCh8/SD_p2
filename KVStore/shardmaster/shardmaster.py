@@ -130,27 +130,65 @@ class ShardMasterSimpleService(ShardMasterService):
         channel = grpc.insecure_channel(address)
         return KVStoreStub(channel)
 
+#TODO: The server logic, in KVStore.shardmaster.shardmaster.ShardMasterReplicasService to provide
+#the required functionalities (sharding and replicas)
 class ShardMasterReplicasService(ShardMasterSimpleService):
     def __init__(self, number_of_shards: int):
         super().__init__()
-        """
-        To fill with your code
-        """
+        self.numberOfShards = number_of_shards
+        self.replicaMasters = dict() # Dictionary to store the replica masters addresses and their key ranges
+        self.secondaryReplicas = dict()  # Dictionary to store the secondary replicas addresses(keys) per replica master(value) adress
 
     def leave(self, server: str):
-        """
-        To fill with your code
-        """
-
+        if server in self.replicaMasters:
+            # Replica master is leaving, redistribute key ranges
+            self.replicaMasters.pop(server) #delete
+            super().leave(server)
+        else:
+            # Secondary replica is leaving, remove from the replica master's secondary replicas
+            self.secondaryReplicas.pop(server)#delete the secondary replica of the replica master dictionary
+           
     def join_replica(self, server: str) -> Role:
-        """
-        To fill with your code
-        """
+        if len(self.replicaMasters) < self.numberOfShards:
+            # New server becomes a replica master
+            self.replicaMasters[server] = []
+            super().join(server)
+            #TODO: Update key ranges
+            return Role.MASTER
+        else:
+            # New server becomes a secondary replica of the replica master with least replicas
+            frequency = dict(int)
+            for value in self.secondaryReplicas.values():
+                frequency[value] += 1
+            min_frequency = min(frequency.values())
+            least_encountered_value = None
+            for key, value in frequency.items():
+                if value == min_frequency:
+                    least_encountered_value = key
+                    break
+            self.secondaryReplicas[server]=least_encountered_value
+            return Role.REPLICA
+        return role
 
     def query_replica(self, key: int, op: Operation) -> str:
-        """
-        To fill with your code
-        """
+        found = False
+        for replica_master, key_ranges in self.replicaMasters.items() and not found:
+                for key_range in key_ranges and not found:
+                    if key >= key_range.start and key <= key_range.end:
+                        replica_m = replica_master
+                        found=True
+        if op == Operation.APPEND or op == Operation.L_POP or op == Operation.PUT or op == Operation.R_POP:
+            # For write operation, return the address of the corresponding shard's replica master
+            return replica_m
+        elif op == Operation.GET:
+            # For read operation, return the address of either a replica master or a secondary replica
+            for key, val in self.secondaryReplicas.items():
+                if val == replica_m:
+                    return key
+            return replica_m
+        else:
+            raise ValueError("Invalid operation type")
+
 
 
 class ShardMasterServicer(ShardMasterServicer):

@@ -129,44 +129,61 @@ class KVStorageSimpleService(KVStorageService):
 
 class KVStorageReplicasService(KVStorageSimpleService):
     role: Role
-
     def __init__(self, consistency_level: int):
         super().__init__()
         self.consistency_level = consistency_level
-        """
-        To fill with your code
-        """
+        self.secondary_replicas = list() #list of replica's adresses
 
     def l_pop(self, key: int) -> str:
-        """
-        To fill with your code
-        """
-
+            #Run l_pop on replica master and updates all the replicas
+            value = super().l_pop(key)
+            if value is not None:
+                if self.role == Role.MASTER: # if it's replica master
+                    for replica in self.secondary_replicas:
+                        #for each replica do l_pop
+                        repl=self.getServer(replica)
+                        repl.LPop(GetRequest(key=key))
+            return value
+    
     def r_pop(self, key: int) -> str:
-        """
-        To fill with your code
-        """
+        # Run r_pop on replica master and update all the replicas
+        value = super().r_pop(key)
+        if value is not None:
+            if self.role == Role.MASTER:
+                for replica in self.secondary_replicas:
+                     #for each replica do r_pop
+                        repl=self.getServer(replica)
+                        repl.RPop(GetRequest(key=key))
+        return value
 
     def put(self, key: int, value: str):
-        """
-        To fill with your code
-        """
+        super().put(key)
+        if self.role == Role.MASTER:
+            for replica in self.secondary_replicas:
+                    #for each replica do put
+                    repl=self.getServer(replica)
+                    repl.Put(GetRequest(key=key, value=value))
 
     def append(self, key: int, value: str):
-        """
-        To fill with your code
-        """
+        super().append(key)
+        if self.role == Role.MASTER:
+            for replica in self.secondary_replicas:
+                    #for each replica do append
+                    repl=self.getServer(replica)
+                    repl.Append(GetRequest(key=key, value=value))
 
     def add_replica(self, server: str):
-        """
-        To fill with your code
-        """
+        if self.role==Role.REPLICA:
+            self.secondary_replicas.append(server)
 
     def remove_replica(self, server: str):
-        """
-        To fill with your code
-        """
+        if server in self.secondary_replicas:
+            self.secondary_replicas.remove(server)
 
+    def getServer(self, address:str) -> KVStoreStub:
+        channel = grpc.insecure_channel(address)
+        return KVStoreStub(channel)
+    
     def set_role(self, role: Role):
         logger.info(f"Got role {role}")
         self.role = role
