@@ -8,7 +8,7 @@ from KVStore.protos.kv_store_pb2 import *
 from KVStore.protos.kv_store_pb2_grpc import KVStoreServicer, KVStoreStub
 from google.protobuf import empty_pb2
 from KVStore.protos.kv_store_shardmaster_pb2 import QueryRequest, Role
-
+import KVStore.protos.kv_store_shardmaster_pb2 as CTE
 EVENTUAL_CONSISTENCY_INTERVAL: int = 2
 
 logger = logging.getLogger("KVStore")
@@ -133,48 +133,86 @@ class KVStorageReplicasService(KVStorageSimpleService):
         super().__init__()
         self.consistency_level = consistency_level
         self.secondary_replicas = list() #list of replica's adresses
-
+        self.eventual_consistency_thread = threading.Thread(target=self.perform_eventual_consistency_updates)
+        self.eventual_consistency_thread.daemon = True
+        self.eventual_consistency_thread.start()
+    
+    def perform_eventual_consistency_updates(self):
+        while True:
+            time.sleep(EVENTUAL_CONSISTENCY_INTERVAL)
+            self.update_secondary_replicas()
+    
+    def update(self, repl:KVStoreStub):
+        self.semaphore.acquire()
+        for key in self.values_set:
+            request = PutRequest(key=key, value=self.values_set[key])
+            repl.Put(request)  
+        self.semaphore.release()
+        
+    def update_secondary_replicas(self):
+        # Get a subset of secondary replicas based on the consistency level
+        replicas = list(self.secondary_replicas)[-self.consistency_level:]
+        # Perform update operation on the selected replicas
+        for replica in replicas:
+            repl = self.getServer(replica)
+            self.update(repl)
+    
     def l_pop(self, key: int) -> str:
-            #Run l_pop on replica master and updates all the replicas
-            value = super().l_pop(key)
-            if value is not None:
-                if self.role == Role.MASTER: # if it's replica master
-                    for replica in self.secondary_replicas:
-                        #for each replica do l_pop
-                        repl=self.getServer(replica)
-                        repl.LPop(GetRequest(key=key))
-            return value
+        #Run l_pop on replica master and updates all the replicas
+        value = super().l_pop(key)
+        if value is not None:
+            if self.role == CTE.MASTER: # if it's replica master
+                counter=0
+                for replica in self.secondary_replicas:
+                    #for each replica do l_pop
+                    if counter == self.consistency_level:
+                        break
+                    repl=self.getServer(replica)
+                    repl.LPop(GetRequest(key=key))
+                    counter+=1
+        return value
     
     def r_pop(self, key: int) -> str:
         # Run r_pop on replica master and update all the replicas
         value = super().r_pop(key)
         if value is not None:
-            if self.role == Role.MASTER:
+            if self.role == CTE.MASTER:
+                counter=0
                 for replica in self.secondary_replicas:
-                     #for each replica do r_pop
-                        repl=self.getServer(replica)
-                        repl.RPop(GetRequest(key=key))
+                    #for each replica do r_pop
+                    if counter == self.consistency_level:
+                        break
+                    repl=self.getServer(replica)
+                    repl.RPop(GetRequest(key=key))
+                    counter+=1
         return value
 
     def put(self, key: int, value: str):
-        super().put(key)
-        if self.role == Role.MASTER:
+        super().put(key, value)
+        if self.role == CTE.MASTER:
+            counter=0
             for replica in self.secondary_replicas:
-                    #for each replica do put
-                    repl=self.getServer(replica)
-                    repl.Put(GetRequest(key=key, value=value))
-
+                #for each replica do put
+                if counter == self.consistency_level:
+                    break
+                repl=self.getServer(replica)
+                repl.Put(PutRequest(key=key, value=value))
+                counter+=1
+    
     def append(self, key: int, value: str):
-        super().append(key)
-        if self.role == Role.MASTER:
+        super().append(key, value)
+        if self.role == CTE.MASTER:
+            counter=0
             for replica in self.secondary_replicas:
-                    #for each replica do append
-                    repl=self.getServer(replica)
-                    repl.Append(GetRequest(key=key, value=value))
+                #for each replica do l_pop
+                if counter == self.consistency_level:
+                    break
+                repl=self.getServer(replica)
+                repl.Append(AppendRequest(key=key, value=value))
+                counter+=1
 
     def add_replica(self, server: str):
-        if self.role==Role.REPLICA:
-            self.secondary_replicas.append(server)
+        self.secondary_replicas.append(server)
 
     def remove_replica(self, server: str):
         if server in self.secondary_replicas:

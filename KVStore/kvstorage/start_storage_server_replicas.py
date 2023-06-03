@@ -11,9 +11,8 @@ HOSTNAME: str = "localhost"
 
 
 def _run(end_queue: Queue, storage_server_port: int, shardmaster_port: int, consistency_level: int):
-
+   
     setup_logger()
-
     address: str = "%s:%d" % (HOSTNAME, storage_server_port)
 
     storage_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
@@ -31,7 +30,6 @@ def _run(end_queue: Queue, storage_server_port: int, shardmaster_port: int, cons
     stub = kv_store_shardmaster_pb2_grpc.ShardMasterStub(channel)
     req = JoinRequest(server=address)
     resp: JoinReplicaResponse = stub.JoinReplica(req)
-
     service.set_role(resp.role)
 
     try:

@@ -7,6 +7,7 @@ from KVStore.protos.kv_store_pb2_grpc import KVStoreStub
 from KVStore.protos.kv_store_shardmaster_pb2_grpc import ShardMasterServicer
 from KVStore.protos.kv_store_shardmaster_pb2 import *
 from google.protobuf import empty_pb2
+import KVStore.protos.kv_store_shardmaster_pb2 as CTE
 
 logger = logging.getLogger(__name__)
 
@@ -136,59 +137,58 @@ class ShardMasterReplicasService(ShardMasterSimpleService):
     def __init__(self, number_of_shards: int):
         super().__init__()
         self.numberOfShards = number_of_shards
-        self.replicaMasters = dict() # Dictionary to store the replica masters addresses and their key ranges
         self.secondaryReplicas = dict()  # Dictionary to store the secondary replicas addresses(keys) per replica master(value) adress
-
+        self.nOfReplicasPerRM = dict() #dictionary to store the number of replicas per replica master
+ 
     def leave(self, server: str):
-        if server in self.replicaMasters:
+        if server in self.servers:
             # Replica master is leaving, redistribute key ranges
-            self.replicaMasters.pop(server) #delete
-            super().leave(server)
+            self.leave(server)
         else:
             # Secondary replica is leaving, remove from the replica master's secondary replicas
+            self.nOfReplicasPerRM[self.secondaryReplicas[server]]-=1 #decrements the number of replicas of the server
             self.secondaryReplicas.pop(server)#delete the secondary replica of the replica master dictionary
-           
+            
+
     def join_replica(self, server: str) -> Role:
-        if len(self.replicaMasters) < self.numberOfShards:
+        if len(self.servers) < self.numberOfShards:
             # New server becomes a replica master
-            self.replicaMasters[server] = []
-            super().join(server)
-            #TODO: Update key ranges
-            return Role.MASTER
+            self.servers[server] = []
+            self.nOfReplicasPerRM[server]=0
+            self.join(server)
+            return CTE.MASTER
         else:
             # New server becomes a secondary replica of the replica master with least replicas
-            frequency = dict()
-            for value in self.secondaryReplicas.values():
-                frequency[value] += 1
-            min_frequency = min(frequency.values())
-            least_encountered_value = None
-            for key, value in frequency.items():
-                if value == min_frequency:
-                    least_encountered_value = key
+            min_frequency = min(self.nOfReplicasPerRM.values()) #find wich RM has less replicas
+            repMWithLessR=None
+            self.semaphore.acquire()
+            for key in self.nOfReplicasPerRM:
+                if self.nOfReplicasPerRM[key] == min_frequency:
+                    repMWithLessR = key
                     break
-            self.secondaryReplicas[server]=least_encountered_value
-            return Role.REPLICA
-        return role
+            self.semaphore.release()
+            self.secondaryReplicas[server]=repMWithLessR
+            self.nOfReplicasPerRM[repMWithLessR]+=1
+            stub=self.getServer(repMWithLessR)
+            stub.AddReplica(ServerRequest(server=server))
+
+            return CTE.REPLICA
 
     def query_replica(self, key: int, op: Operation) -> str:
-        found = False
-        for replica_master, key_ranges in self.replicaMasters.items():
-            if found:
+        replica_m = None
+        for replica_master in self.servers:
+            key_range=self.servers[replica_master]
+            if key >= key_range[0] and key <= key_range[1]:
+                replica_m = replica_master
                 break
-            for key_range in key_ranges:
-                if found:
-                    break
-                if key >= key_range.start and key <= key_range.end:
-                    replica_m = replica_master
-                    found=True
-        if op == Operation.APPEND or op == Operation.L_POP or op == Operation.PUT or op == Operation.R_POP:
+        if op in (CTE.APPEND, CTE.L_POP, CTE.PUT, CTE.R_POP):
             # For write operation, return the address of the corresponding shard's replica master
             return replica_m
-        elif op == Operation.GET:
+        elif op == CTE.GET:
             # For read operation, return the address of either a replica master or a secondary replica
-            for key, val in self.secondaryReplicas.items():
-                if val == replica_m:
-                    return key
+            for replica_key, replica_val in self.secondaryReplicas.items():
+                if replica_val == replica_m:
+                    return replica_key
             return replica_m
         else:
             raise ValueError("Invalid operation type")

@@ -7,6 +7,7 @@ from google.protobuf import message
 from KVStore.protos.kv_store_pb2_grpc import KVStoreStub
 from KVStore.protos.kv_store_shardmaster_pb2 import QueryRequest, QueryResponse, QueryReplicaRequest, Operation
 from KVStore.protos.kv_store_shardmaster_pb2_grpc import ShardMasterStub
+import KVStore.protos.kv_store_shardmaster_pb2 as CTE
 
 logger = logging.getLogger(__name__)
 
@@ -104,21 +105,25 @@ class ShardReplicaClient(ShardClient):
 
     def get(self, key: int) -> Union[str, None]:
         #Asks for the value of a key (read)
-        stub =self.getServer(key, Operation.GET)
-        return stub.Get(GetRequest(key=key))
+        stub =self.getServer(key, CTE.GET)
+        val=stub.Get(GetRequest(key=key)).value
+        if val is "":
+            stub =self.getServer(key, CTE.PUT) #we get the master that's gonna be actualized
+            val=stub.Get(GetRequest(key=key)).value
+        return val
 
     def l_pop(self, key: int) -> Union[str, None]:
         #Asks for the rightmost character of the value of the key. The returned character is deleted from the stored value.
         # (write)
-        stub =self.getServer(key, Operation.L_POP)
+        stub =self.getServer(key, CTE.L_POP)
         result = stub.LPop(GetRequest(key=key)).value
         if result=="None":
             result = None
         return result
 
     def r_pop(self, key: int) -> Union[str, None]:
-        stub =self.getServer(key, Operation.R_POP)
-        result = stub.RPop(GetRequest(key=key))
+        stub =self.getServer(key, CTE.R_POP)
+        result = stub.RPop(GetRequest(key=key)).value
         if result=="None":
             result = None
         return result
@@ -127,18 +132,18 @@ class ShardReplicaClient(ShardClient):
     def put(self, key: int, value: str):
         # Saves the value into the key.
         # If the key exists already, its value gets overwritten. (write)
-        stub =self.getServer(key, Operation.PUT)
+        stub =self.getServer(key, CTE.PUT)
         stub.Put(PutRequest(key=key, value=value))
 
 
     def append(self, key: int, value: str):
         # Concatenates the specified value to the leftmost end of the value in the key.
         # If the key does not exist, it saves the value into the key. (write)
-        stub =self.getServer(key, Operation.APPEND)
+        stub =self.getServer(key, CTE.APPEND)
         stub.Append(AppendRequest(key=key, value=value))
 
 
-    def getServer(self, key: int, op) -> KVStoreStub:
+    def getServer(self, key: int, op: CTE.Operation) -> KVStoreStub:
         a=self.stub.QueryReplica(QueryReplicaRequest(key=key, operation=op))
         address = a.server
         channel = grpc.insecure_channel(address)

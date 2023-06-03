@@ -33,14 +33,13 @@ if __name__ ==  '__main__':
     for consistency_level in CONSISTENCY_LEVELS:
 
         print(f"Running with consistency level {consistency_level}.")
+        
 
         server_proc = start_shardmaster_replicas.run(SHARDMASTER_PORT, NUM_SHARDS)
-
         storage_proc_end_queues = [
             start_storage_server_replicas.run(get_port(), SHARDMASTER_PORT, consistency_level)
             for i in range(NUM_STORAGE_SERVERS)
         ]
-
         test = ShardKVReplicationPerformanceTest(master_address, NUM_CLIENTS)
         throughput, error_rate, error_perc = test.test()
         results.append([consistency_level, throughput, error_rate, error_perc])
