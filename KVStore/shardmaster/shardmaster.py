@@ -157,7 +157,7 @@ class ShardMasterReplicasService(ShardMasterSimpleService):
             return Role.MASTER
         else:
             # New server becomes a secondary replica of the replica master with least replicas
-            frequency = dict(int)
+            frequency = dict()
             for value in self.secondaryReplicas.values():
                 frequency[value] += 1
             min_frequency = min(frequency.values())
@@ -172,11 +172,15 @@ class ShardMasterReplicasService(ShardMasterSimpleService):
 
     def query_replica(self, key: int, op: Operation) -> str:
         found = False
-        for replica_master, key_ranges in self.replicaMasters.items() and not found:
-                for key_range in key_ranges and not found:
-                    if key >= key_range.start and key <= key_range.end:
-                        replica_m = replica_master
-                        found=True
+        for replica_master, key_ranges in self.replicaMasters.items():
+            if found:
+                break
+            for key_range in key_ranges:
+                if found:
+                    break
+                if key >= key_range.start and key <= key_range.end:
+                    replica_m = replica_master
+                    found=True
         if op == Operation.APPEND or op == Operation.L_POP or op == Operation.PUT or op == Operation.R_POP:
             # For write operation, return the address of the corresponding shard's replica master
             return replica_m
